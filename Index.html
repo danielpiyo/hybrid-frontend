@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hybrid Medical Concept Extractor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 10px;
+            border: 2px solid #ccc;
+            font-size: 16px;
+            border-radius: 6px;
+            resize: vertical;
+        }
+
+        button {
+            margin-top: 10px;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            background: #0066ff;
+            color: white;
+            font-size: 18px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #004ecc;
+        }
+
+        .result-box {
+            margin-top: 25px;
+            background: #fafafa;
+            padding: 20px;
+            border-left: 4px solid #0066ff;
+            border-radius: 6px;
+        }
+
+        .concept {
+            background: #eef4ff;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        .label {
+            font-weight: bold;
+            font-size: 18px;
+            color: #003399;
+        }
+
+        .detail-title {
+            font-weight: bold;
+            margin-top: 10px;
+            color: #444;
+        }
+
+        ul {
+            margin-top: 5px;
+        }
+
+        .loading {
+            display: none;
+            font-weight: bold;
+            color: #0066ff;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Hybrid Medical Concept Extractor</h1>
+
+    <label>Enter clinical text:</label>
+    <textarea id="inputText" placeholder="Example: The patient has diabetes and severe headache..."></textarea>
+
+    <button onclick="analyze()">Analyze Text</button>
+
+    <div class="loading" id="loading">⏳ Analyzing... Please wait</div>
+    <div id="error" class="error"></div>
+
+    <div id="results"></div>
+</div>
+
+<script>
+    // ⬅️ Change this to your server IP or domain
+    const API_URL = "https://fad38e6dbbcd.ngrok-free.app/predict";
+
+    async function analyze() {
+        const text = document.getElementById("inputText").value.trim();
+        const loading = document.getElementById("loading");
+        const error = document.getElementById("error");
+        const results = document.getElementById("results");
+
+        results.innerHTML = "";
+        error.innerHTML = "";
+
+        if (!text) {
+            error.innerHTML = "Please enter some text!";
+            return;
+        }
+
+        loading.style.display = "block";
+
+        try {
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text })
+            });
+
+            const data = await response.json();
+            loading.style.display = "none";
+
+            if (data.error) {
+                error.innerHTML = data.error;
+                return;
+            }
+
+            results.innerHTML = `<div class='result-box'>
+                <h2>Found ${data.count} Concept(s)</h2>
+            </div>`;
+
+            data.predictions.forEach(item => {
+                const block = `
+                    <div class="concept">
+                        <div class="label">${item.model_label}</div>
+                        <div><b>Mapped:</b> ${item.mapped_label || "N/A"}</div>
+                        <div><b>Ontology:</b> ${item.ontology || "N/A"}</div>
+                        <div><b>URI:</b> <a href="${item.uri}" target="_blank">${item.uri || "N/A"}</a></div>
+
+                        <div class="detail-title">Parents</div>
+                        <ul>${item.parents.map(p => `<li>${p}</li>`).join("")}</ul>
+
+                        <div class="detail-title">Ancestors</div>
+                        <ul>${item.ancestors.map(a => `<li>${a}</li>`).join("")}</ul>
+                    </div>`;
+                results.innerHTML += block;
+            });
+
+        } catch (err) {
+            loading.style.display = "none";
+            error.innerHTML = "Error contacting server: " + err;
+        }
+    }
+</script>
+
+</body>
+</html>
